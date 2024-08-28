@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Assembly Debugger</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #2C2C2E;
+            color: #E5E5E7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            background-color: #1C1C1E;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .buttons button {
+            background-color: #3A3A3C;
+            color: #E5E5E7;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.2s;
+        }
+
+        .buttons button:hover {
+            background-color: #48484A;
+        }
+
+        .top-section {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .assembly-input {
+            width: 65%;
+            height: 200px;
+            background-color: #3A3A3C;
+            color: #E5E5E7;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            resize: none;
+        }
+
+        .scalar-registers {
+            width: 35%;
+        }
+
+        .scalar-registers h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #E5E5E7;
+        }
+
+        .scalar-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .scalar-table th,
+        .scalar-table td {
+            background-color: #3A3A3C;
+            color: #E5E5E7;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #2C2C2E;
+        }
+
+        .scalar-table th {
+            background-color: #48484A;
+            width: 30%;
+        }
+
+        .vector-registers {
+            width: 100%;
+        }
+
+        .vector-registers h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #E5E5E7;
+        }
+
+        .vector-table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow-x: auto;
+            display: block;
+        }
+
+        .vector-table th,
+        .vector-table td {
+            background-color: #3A3A3C;
+            color: #E5E5E7;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #2C2C2E;
+            min-width: 30px;
+        }
+
+        .vector-table th {
+            background-color: #48484A;
+        }
+
+        .vector-table td {
+            min-width: 30px;
+        }
+
+        .assembly-input {
+                font-size: small;
+                overflow: auto;
+        }
+
+        #scalar-register-container {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: small;
+        }
+        /* Optional: Make tables responsive */
+        @media (max-width: 768px) {
+            .top-section {
+                flex-direction: column;
+            }
+
+            .assembly-input, .scalar-registers {
+                width: 100%;
+                overflow: auto;
+            }
+
+            .vector-table th, .vector-table td {
+                padding: 3px;
+                min-width: 20px;
+            }
+        }
+
+        /* Styling the scrollbar */
+        .assembly-input::-webkit-scrollbar {
+            width: 10px; /* Width of the scrollbar */
+        }
+
+        .assembly-input::-webkit-scrollbar-track {
+            background: #f1f1f1; /* Background of the scrollbar track */
+        }
+
+        .assembly-input::-webkit-scrollbar-thumb {
+            background-color: #888; /* Scrollbar color */
+            border-radius: 10px; /* Roundness of the scrollbar handle */
+            border: 2px solid #f1f1f1; /* Adds space around the scrollbar handle */
+        }
+
+        .assembly-input::-webkit-scrollbar-thumb:hover {
+            background-color: #555; /* Scrollbar color on hover */
+        }
+
+        /* For Firefox */
+        div, textarea {
+            scrollbar-width: thin; /* Makes the scrollbar thinner */
+            scrollbar-color: #888 #f1f1f1; /* Thumb color and track color */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="buttons">
+            <button id="startBtn" onclick="freezeTextarea()">&#9654;</button> <!-- Play icon -->
+            <button id="stepBackwardBtn" onclick="prevLine()">&#x2190;</button> <!-- Backward icon -->
+            <button id="stepForwardBtn" onclick="nextLine()">&#x2192;</button> <!-- Forward icon -->
+        </div>
+
+        <div class="top-section">
+            <textarea id="code-entry" class="assembly-input" placeholder="Enter assembly instructions here..."></textarea>
+            <div id="frozen-code" class="assembly-input" style="display: none; height: 200px;"></div>
+            <div class="scalar-registers">
+                <h4>Scalar Registers</h4>
+                <div id="scalar-register-container"></div>
+            </div>
+        </div>
+
+        <div class="vector-registers">
+            <h3>Vector Registers</h3>
+            <table class="vector-table">
+                <thead>
+                    <tr>
+                        <th>Register</th>
+                        <!-- Dynamically generate columns for the vector width -->
+                        <!-- 32 columns labeled 0 to 31 -->
+                        <th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th>
+                        <th>8</th><th>9</th><th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>15</th>
+                        <th>16</th><th>17</th><th>18</th><th>19</th><th>20</th><th>21</th><th>22</th><th>23</th>
+                        <th>24</th><th>25</th><th>26</th><th>27</th><th>28</th><th>29</th><th>30</th><th>31</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Example row; additional rows can be added dynamically -->
+                    <tr>
+                        <td>V0</td>
+                        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+                        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+                        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+                        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+                    </tr>
+                    <!-- Add more rows for other vector registers -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const regNameWidth = 6;
+        let showCode = true;
+        let codeLine = 0;
+        let totalLines = 0;
+
+        let scalarRegisterMap = new Map([
+            ['PC', 0],
+            ['SCC', 0]
+            // Add more registers as needed
+        ]);
+
+        function genSameWidth(key, value)
+        {
+            const spaces = '.'.repeat(regNameWidth - key.length);
+            return `${key}${spaces}: ${value}`;
+        }
+
+        function displayRegisters()
+        {
+            const container = document.getElementById('scalar-register-container');
+            container.innerHTML = '';  // Clear any existing content
+
+
+            scalarRegisterMap.forEach((value, key) => {
+                const registerDiv = document.createElement('div');
+                registerDiv.className = 'register';
+                registerDiv.textContent = genSameWidth(key, value);
+                container.appendChild(registerDiv);
+            });
+        }
+
+        function prevLine()
+        {
+            unhighlight(codeLine);
+            if (codeLine > 0)
+            {
+                codeLine -= 1;
+            }
+            highlight(codeLine);
+        }
+
+        function nextLine()
+        {
+            unhighlight(codeLine);
+            if (codeLine < totalLines - 1)
+            {
+                codeLine += 1;
+            }
+            highlight(codeLine);
+        }
+
+        function freezeTextarea()
+        {
+            const textarea = document.getElementById('code-entry');
+            const frozenContainer = document.getElementById('frozen-code');
+            const startBtn = document.getElementById('startBtn');
+            
+            if (showCode)
+            {
+                // Clear previous frozen content
+                frozenContainer.innerHTML = '';
+                
+                // Split textarea content into lines
+                const lines = textarea.value.split('\n');
+                totalLines = lines.length;
+                
+                // Convert each line to a div and append to the frozen container
+                lines.forEach((line, index) => {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'frozen-line';
+                    lineDiv.id = 'frozen-line-' + index;
+                    lineDiv.textContent = line;
+                    
+                    frozenContainer.appendChild(lineDiv);
+                });
+                
+                // Hide the textarea
+                textarea.style.display = 'none';
+                frozenContainer.style.display = 'block';
+                startBtn.textContent = "⏹";
+                codeLine = 0;
+                highlight(codeLine);
+                displayRegisters();
+            }
+            else
+            {
+                // Hide the textarea
+                textarea.style.display = 'block';
+                frozenContainer.style.display = 'none';
+                startBtn.textContent = "▶";
+            }
+
+            showCode = !showCode;
+        }
+
+        function highlight(codeLine)
+        {    
+            const line = document.getElementById('frozen-line-' + codeLine);
+            line.style.backgroundColor = '#e6e6e6';
+            line.style.color = '#000000';
+        }
+
+        function unhighlight(codeLine)
+        {    
+            const line = document.getElementById('frozen-line-' + codeLine);
+            line.style.backgroundColor = 'inherit';
+            line.style.color = 'inherit';
+        }
+
+    </script>
+</body>
+</html>
