@@ -42,10 +42,10 @@ set (ALL_CPP
     ${THIRD_PARTY_DIR}/tinyxml2/tinyxml2.cpp
 )
 
-add_library(isa_decoder_py MODULE ${ALL_CPP} ${ALL_H} ./isa_decoder/isa_decoder_pybind.cpp)
-set_target_properties(isa_decoder_py PROPERTIES PREFIX "")
-target_link_libraries(isa_decoder_py PRIVATE pybind11::module)
-target_include_directories(isa_decoder_py PRIVATE
+add_library(amdisa MODULE ${ALL_CPP} ${ALL_H} ./isa_decoder/isa_decoder_pybind.cpp)
+set_target_properties(amdisa PROPERTIES PREFIX "")
+target_link_libraries(amdisa PRIVATE pybind11::module)
+target_include_directories(amdisa PRIVATE
     ${SRC_DIR}/common
     ${THIRD_PARTY_DIR}/tinyxml2
     PUBLIC
