@@ -71,6 +71,17 @@
             resize: none;
         }
 
+        .console {
+            font-size: small;
+            background-color: #3A3A3C;
+            color: #E5E5E7;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            resize: none;
+        }
+
         .scalar-registers {
             width: 35%;
         }
@@ -194,43 +205,16 @@
             <button id="startBtn" onclick="freezeTextarea()">&#9654;</button> <!-- Play icon -->
             <button id="stepBackwardBtn" onclick="prevLine()">&#x2190;</button> <!-- Backward icon -->
             <button id="stepForwardBtn" onclick="nextLine()">&#x2192;</button> <!-- Forward icon -->
+            <div id="instInfo" class="console"></div>
         </div>
 
         <div class="top-section">
-            <textarea id="code-entry" class="assembly-input" placeholder="Enter assembly instructions here..."></textarea>
-            <div id="frozen-code" class="assembly-input" style="display: none; height: 200px;"></div>
+            <textarea id="code-entry" class="assembly-input" placeholder="Enter assembly instructions here...">0x12341234be8000ff
+0x80600760</textarea>
+            <div id="frozen-code" class="assembly-input" style="display: none;"></div>
             <div class="scalar-registers">
-                <h4>Scalar Registers</h4>
                 <div id="scalar-register-container"></div>
             </div>
-        </div>
-
-        <div class="vector-registers">
-            <h3>Vector Registers</h3>
-            <table class="vector-table">
-                <thead>
-                    <tr>
-                        <th>Register</th>
-                        <!-- Dynamically generate columns for the vector width -->
-                        <!-- 32 columns labeled 0 to 31 -->
-                        <th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th>
-                        <th>8</th><th>9</th><th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>15</th>
-                        <th>16</th><th>17</th><th>18</th><th>19</th><th>20</th><th>21</th><th>22</th><th>23</th>
-                        <th>24</th><th>25</th><th>26</th><th>27</th><th>28</th><th>29</th><th>30</th><th>31</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Example row; additional rows can be added dynamically -->
-                    <tr>
-                        <td>V0</td>
-                        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
-                        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
-                        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
-                        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
-                    </tr>
-                    <!-- Add more rows for other vector registers -->
-                </tbody>
-            </table>
         </div>
     </div>
 
@@ -245,6 +229,25 @@
             ['SCC', 0]
             // Add more registers as needed
         ]);
+
+
+        function sendMessage(message)
+        {
+            fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('instInfo').innerText = data.response;
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
 
         function genSameWidth(key, value)
         {
@@ -291,26 +294,26 @@
             const textarea = document.getElementById('code-entry');
             const frozenContainer = document.getElementById('frozen-code');
             const startBtn = document.getElementById('startBtn');
-            
+
             if (showCode)
             {
                 // Clear previous frozen content
                 frozenContainer.innerHTML = '';
-                
+
                 // Split textarea content into lines
                 const lines = textarea.value.split('\n');
                 totalLines = lines.length;
-                
+
                 // Convert each line to a div and append to the frozen container
                 lines.forEach((line, index) => {
                     const lineDiv = document.createElement('div');
                     lineDiv.className = 'frozen-line';
                     lineDiv.id = 'frozen-line-' + index;
                     lineDiv.textContent = line;
-                    
+
                     frozenContainer.appendChild(lineDiv);
                 });
-                
+
                 // Hide the textarea
                 textarea.style.display = 'none';
                 frozenContainer.style.display = 'block';
@@ -325,20 +328,25 @@
                 textarea.style.display = 'block';
                 frozenContainer.style.display = 'none';
                 startBtn.textContent = "▶";
+                document.getElementById('instInfo').innerText = "Simulation stopped...";
             }
 
             showCode = !showCode;
         }
 
         function highlight(codeLine)
-        {    
+        {
+            // Highlight the text.
             const line = document.getElementById('frozen-line-' + codeLine);
             line.style.backgroundColor = '#e6e6e6';
             line.style.color = '#000000';
+
+            // Send the contents of this line.
+            sendMessage(line.innerText);
         }
 
         function unhighlight(codeLine)
-        {    
+        {
             const line = document.getElementById('frozen-line-' + codeLine);
             line.style.backgroundColor = 'inherit';
             line.style.color = 'inherit';
